@@ -2,7 +2,6 @@ import json
 import getpass
 from pathlib import Path
 from pprint import pprint
-
 from ring_doorbell import Ring, Auth
 from oauthlib.oauth2 import MissingTokenError
 
@@ -19,15 +18,17 @@ def otp_callback():
     return auth_code
 
 
-def expires_at_to_datetime(expires_at=1602956389.7934):
+def expires_at_to_datetime(expires_at):
     from datetime import datetime
     ts = int(expires_at)
-    print(datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'))
+    return datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def main():
     if cache_file.is_file():
-        auth = Auth("Ringer/1.0", json.loads(cache_file.read_text()), token_updated)
+        token = json.loads(cache_file.read_text())
+        auth = Auth("Ringer/1.0", token, token_updated)
+        print(f"Token expires at {expires_at_to_datetime(token['expires_at'])}")
     else:
         username = input("Username: ")
         password = getpass.getpass("Password: ")
@@ -44,19 +45,17 @@ def main():
     pprint(devices)
 
     doorbell = devices['doorbots'][0]
-    id = doorbell.history(limit=100, kind='motion')[0]['id']
-    print(f"doorbell id = {id}")
-    # doorbell.history(limit=100, kind='motion')[0]['id'],
+    history = doorbell.history(limit=100, kind='motion')
+    id = history[0]['id']
     doorbell.recording_download(
         id,
         filename=f'doorbell_motion_{id}.mp4',
         override=True)
 
     cams = devices['stickup_cams']
-    for i, cam in enumerate(cams):
-        id = cam.history(limit=100, kind='motion')[i]['id']
-        print(f"cam[{i}] id = {id}")
-        # cam.history(limit=100, kind='motion')[i]['id'],
+    for cam in cams:
+        history = cam.history(limit=100, kind='motion')
+        id = history[0]['id']
         cam.recording_download(
             id,
             filename=f'cam_motion_{id}.mp4',
